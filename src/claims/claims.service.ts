@@ -1,45 +1,82 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Claim } from './claims.entity';
+import { Claim } from '../claims/claims.entity';
+import { User } from '../users/users.entity';
+import { Policy } from '../policies/policies.entity';
 
 @Injectable()
-export class ClaimsService {
+export class ClaimService {
   constructor(
     @InjectRepository(Claim)
-    private readonly claimRepository: Repository<Claim>,
+    private claimRepository: Repository<Claim>,
+    @InjectRepository(User)
+    private userRepository: Repository<User>,
+    @InjectRepository(Policy)
+    private policyRepository: Repository<Policy>,
   ) {}
 
-  async create(claim: Partial<Claim>): Promise<Claim> {
-    const newClaim = this.claimRepository.create(claim);
-    return await this.claimRepository.save(newClaim);
-  }
+  // Create a new claim
+  async createClaim(user_id: number, policy_id: number, claim_type: string, amount_requested: number, status: 'pending' | 'approved' | 'rejected', documents: any): Promise<Claim> {
+    const user = await this.userRepository.findOne({ where: { user_id } });
+    const policy = await this.policyRepository.findOne({ where: { policy_id } });
 
-  async findAll(): Promise<Claim[]> {
-    return await this.claimRepository.find({ relations: ['policy', 'user'] });
-  }
+    if (!user || !policy) {
+      throw new Error('User or Policy not found');
+    }
 
-  async findOne(claimId: number): Promise<Claim> {
-    const claim = await this.claimRepository.findOne({
-      where: { claim_id: claimId },
-      relations: ['policy', 'user'],
+    const claim = this.claimRepository.create({
+      user,
+      policy,
+      claim_type,
+      amount_requested,
+      status,
+      documents,
     });
+
+    return this.claimRepository.save(claim);
+  }
+
+  // Fetch all claims for a specific user
+  async getClaimsByUser(user_id: number): Promise<Claim[]> {
+    return this.claimRepository.find({ where: { user: { user_id } } });
+  }
+
+  // Fetch all claims with filter options
+  async getAllClaims(status?: 'pending' | 'approved' | 'rejected', claim_type?: string): Promise<Claim[]> {
+    const query = this.claimRepository.createQueryBuilder('claim');
+
+    if (status) {
+      query.andWhere('claim.status = :status', { status });
+    }
+
+    if (claim_type) {
+      query.andWhere('claim.claim_type = :claim_type', { claim_type });
+    }
+
+    return query.getMany();
+  }
+
+  // Fetch detailed information about a specific claim
+  async getClaimById(claimId: number): Promise<Claim> {
+    return this.claimRepository.findOne({
+      where: { claim_id: claimId }, // Use 'where' for findOne
+      relations: ['user', 'policy'], // Include the related entities
+    });
+  }
+
+  // Update the status of a claim
+  async updateClaimStatus(claimId: number, status: 'pending' | 'approved' | 'rejected'): Promise<Claim> {
+    const claim = await this.claimRepository.findOne({
+      where: { claim_id: claimId }, // Use 'where' for findOne
+    });
+
     if (!claim) {
-      throw new NotFoundException(`Claim with ID ${claimId} not found.`);
+      throw new Error('Claim not found');
     }
-    return claim;
-  }
 
-  async update(claimId: number, updates: Partial<Claim>): Promise<Claim> {
-    const claim = await this.findOne(claimId);
-    Object.assign(claim, updates);
-    return await this.claimRepository.save(claim);
-  }
+    claim.status = status;
 
-  async delete(claimId: number): Promise<void> {
-    const result = await this.claimRepository.delete(claimId);
-    if (result.affected === 0) {
-      throw new NotFoundException(`Claim with ID ${claimId} not found.`);
-    }
+    return this.claimRepository.save(claim);
   }
 }
