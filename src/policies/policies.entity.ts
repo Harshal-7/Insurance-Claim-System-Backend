@@ -1,22 +1,22 @@
+import { Claim } from 'src/claims/claims.entity';
+import { User } from 'src/users/users.entity';
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
-  CreateDateColumn,
-  UpdateDateColumn,
+  OneToMany,
 } from 'typeorm';
-import { User } from '../users/users.entity';
 
 @Entity('policies')
 export class Policy {
   @PrimaryGeneratedColumn()
   policy_id: number;
 
-  @ManyToOne(() => User, (user) => user.user_id, { onDelete: 'CASCADE' })
+  @ManyToOne(() => User, (user) => user.policies)
   user: User;
 
-  @Column({ length: 100 })
+  @Column()
   policy_type: string;
 
   @Column('decimal', { precision: 10, scale: 2 })
@@ -28,12 +28,6 @@ export class Policy {
   @Column()
   end_date: Date;
 
-  @Column({ type: 'enum', enum: ['active', 'expired', 'canceled'] })
-  status: 'active' | 'expired' | 'canceled';
-
-  @CreateDateColumn()
-  created_at: Date;
-
-  @UpdateDateColumn()
-  updated_at: Date;
+  @OneToMany(() => Claim, (claim) => claim.policy)
+  claims: Claim[];
 }
