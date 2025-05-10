@@ -6,6 +6,8 @@ import { UsersModule } from './users/users.module';
 import { PoliciesModule } from './policies/policies.module';
 import { ClaimsModule } from './claims/claims.module';
 import { ConfigModule } from '@nestjs/config';
+import { AuthModule } from './auth/auth.module';
+// import { AuditLogModule } from './audit-log/audit-log.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { ConfigModule } from '@nestjs/config';
     UsersModule,
     PoliciesModule,
     ClaimsModule,
+    AuthModule,
+    // AuditLogModule,
   ],
   controllers: [AppController],
   providers: [AppService],
